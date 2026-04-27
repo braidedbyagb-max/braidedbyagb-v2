@@ -512,3 +512,58 @@ export async function sendContactEnquiry(data: {
   if (error) console.error('[email] sendContactEnquiry:', error)
   return { error }
 }
+
+// ── New review notification (admin) ───────────────────────────
+
+const STAR_MAP = ['', '⭐', '⭐⭐', '⭐⭐⭐', '⭐⭐⭐⭐', '⭐⭐⭐⭐⭐']
+const LABEL_MAP = ['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent!']
+
+export async function sendNewReviewNotification(data: {
+  adminEmail: string
+  reviewerName: string
+  rating: number
+  reviewText: string
+  serviceName: string | null
+}) {
+  const resend = getResend()
+  const stars  = STAR_MAP[data.rating]  ?? ''
+  const label  = LABEL_MAP[data.rating] ?? ''
+
+  const body = `
+    <h2 style="margin:0 0 4px;font-size:22px;color:#7A0050;">New Review Submitted ✨</h2>
+    <p style="margin:0 0 20px;color:#7A4A70;font-size:15px;">A client has left a review — it&apos;s awaiting your approval.</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #f0e4f5;border-radius:10px;overflow:hidden;">
+      <tbody>
+        <tr>
+          <td style="padding:12px 16px;background:#faf0fa;font-size:13px;font-weight:700;color:#7A0050;width:30%;border-bottom:1px solid #f0e4f5;">From</td>
+          <td style="padding:12px 16px;font-size:14px;color:#2A0020;border-bottom:1px solid #f0e4f5;">${data.reviewerName}</td>
+        </tr>
+        <tr>
+          <td style="padding:12px 16px;background:#faf0fa;font-size:13px;font-weight:700;color:#7A0050;border-bottom:1px solid #f0e4f5;">Rating</td>
+          <td style="padding:12px 16px;font-size:14px;color:#2A0020;border-bottom:1px solid #f0e4f5;">${stars} ${data.rating}/5 — ${label}</td>
+        </tr>
+        ${data.serviceName ? `
+        <tr>
+          <td style="padding:12px 16px;background:#faf0fa;font-size:13px;font-weight:700;color:#7A0050;border-bottom:1px solid #f0e4f5;">Service</td>
+          <td style="padding:12px 16px;font-size:14px;color:#2A0020;border-bottom:1px solid #f0e4f5;">${data.serviceName}</td>
+        </tr>` : ''}
+        <tr>
+          <td style="padding:12px 16px;background:#faf0fa;font-size:13px;font-weight:700;color:#7A0050;">Review</td>
+          <td style="padding:12px 16px;font-size:14px;color:#2A0020;line-height:1.7;white-space:pre-wrap;">${data.reviewText}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="margin:20px 0 8px;font-size:14px;color:#7A4A70;">Log in to the admin panel to approve or reject this review.</p>
+    ${primaryButton('Review in Admin', `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://braidedbyagb.co.uk'}/admin/reviews`)}
+  `
+
+  const { error } = await resend.emails.send({
+    from:    FROM_EMAIL(),
+    to:      data.adminEmail,
+    subject: `⭐ New ${data.rating}-star review from ${data.reviewerName}`,
+    html:    emailWrapper(body),
+  })
+
+  if (error) console.error('[email] sendNewReviewNotification:', error)
+  return { error }
+}
