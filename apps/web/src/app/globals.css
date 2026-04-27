@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/* ── Brand CSS Variables ──────────────────────────────────── */
+:root {
+  /* Colours */
+  --color-primary:       #CC1A8A;
+  --color-primary-dark:  #A8146E;
+  --color-deep-purple:   #7A0050;
+  --color-gold:          #F0C030;
+  --color-bg:            #F0D6F5;
+  --color-bg-light:      #F8EDF9;
+  --color-text:          #2A0020;
+  --color-text-muted:    #7A4A70;
+  --color-white:         #FFFFFF;
+  --color-border:        rgba(204, 26, 138, 0.15);
+}
+
+/* ── Base ─────────────────────────────────────────────────── */
+html, body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-deep-purple);
+  font-weight: 700;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--color-primary-dark);
+}
+
+/* ── Scrollbar (Webkit) ───────────────────────────────────── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: var(--color-bg); }
+::-webkit-scrollbar-thumb  { background: var(--color-primary); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-primary-dark); }
+
+/* ── Focus ring ────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
