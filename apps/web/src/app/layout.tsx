@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Montserrat, Lato } from 'next/font/google'
+import { Montserrat, Lato, Cormorant_Garamond } from 'next/font/google'
 import './globals.css'
 
 const montserrat = Montserrat({
@@ -13,6 +13,14 @@ const lato = Lato({
   variable: '--font-body',
   subsets: ['latin'],
   weight: ['300', '400', '700'],
+  display: 'swap',
+})
+
+const cormorant = Cormorant_Garamond({
+  variable: '--font-accent',
+  subsets: ['latin'],
+  weight: ['400', '600', '700'],
+  style: ['normal', 'italic'],
   display: 'swap',
 })
 
@@ -39,7 +47,7 @@ export default function RootLayout({
   return (
     <html
       lang="en-GB"
-      className={`${montserrat.variable} ${lato.variable} h-full antialiased`}
+      className={`${montserrat.variable} ${lato.variable} ${cormorant.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

@@ -463,3 +463,52 @@ export async function sendAdminMorningBrief(data: {
   if (error) console.error('[email] sendAdminMorningBrief:', error)
   return { error }
 }
+
+// ── Homepage contact form enquiry ─────────────────────────────
+
+export async function sendContactEnquiry(data: {
+  name: string
+  email: string
+  phone?: string
+  message: string
+  adminEmail: string
+}) {
+  const resend = getResend()
+
+  const body = `
+    <h2 style="margin:0 0 4px;font-size:22px;color:#7A0050;">New Website Enquiry 💌</h2>
+    <p style="margin:0 0 20px;color:#7A4A70;font-size:15px;">Someone has sent a message via the homepage contact form.</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #f0e4f5;border-radius:10px;overflow:hidden;">
+      <tbody>
+        <tr>
+          <td style="padding:12px 16px;background:#faf0fa;font-family:inherit;font-size:13px;font-weight:700;color:#7A0050;width:30%;border-bottom:1px solid #f0e4f5;">Name</td>
+          <td style="padding:12px 16px;font-size:14px;color:#2A0020;border-bottom:1px solid #f0e4f5;">${data.name}</td>
+        </tr>
+        <tr>
+          <td style="padding:12px 16px;background:#faf0fa;font-size:13px;font-weight:700;color:#7A0050;border-bottom:1px solid #f0e4f5;">Email</td>
+          <td style="padding:12px 16px;font-size:14px;color:#2A0020;border-bottom:1px solid #f0e4f5;"><a href="mailto:${data.email}" style="color:#CC1A8A;">${data.email}</a></td>
+        </tr>
+        <tr>
+          <td style="padding:12px 16px;background:#faf0fa;font-size:13px;font-weight:700;color:#7A0050;border-bottom:1px solid #f0e4f5;">Phone</td>
+          <td style="padding:12px 16px;font-size:14px;color:#2A0020;border-bottom:1px solid #f0e4f5;">${data.phone || 'Not provided'}</td>
+        </tr>
+        <tr>
+          <td style="padding:12px 16px;background:#faf0fa;font-size:13px;font-weight:700;color:#7A0050;">Message</td>
+          <td style="padding:12px 16px;font-size:14px;color:#2A0020;line-height:1.7;white-space:pre-wrap;">${data.message}</td>
+        </tr>
+      </tbody>
+    </table>
+    ${primaryButton('Reply by Email', `mailto:${data.email}`)}
+  `
+
+  const { error } = await resend.emails.send({
+    from:     FROM_EMAIL(),
+    to:       data.adminEmail,
+    replyTo:  data.email,
+    subject:  `Website Enquiry from ${data.name}`,
+    html:     emailWrapper(body),
+  })
+
+  if (error) console.error('[email] sendContactEnquiry:', error)
+  return { error }
+}
