@@ -67,10 +67,10 @@ ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value;
 -- ── 3. Customers ──────────────────────────────────────────────
 INSERT INTO customers (id, name, email, phone, email_optin, created_at) OVERRIDING SYSTEM VALUE VALUES
   (1,  'Glory Oloruntoba', 'oloruntobaglorymabel@gmail.com',  '07769064971', true, '2026-02-28 09:24:15+00'),
-  (5,  'Tolulope',         'tolu.ao@gmail.com',               NULL,          true, '2026-03-01 04:57:55+00'),
+  (5,  'Tolulope',         'tolu.ao@gmail.com',               '',            true, '2026-03-01 04:57:55+00'),
   (20, 'Tolulope Agboola', 'therealtolu@gmail.com',           '07776736821', true, '2026-03-05 19:52:59+00'),
   (23, 'Glory',            'glorymoloruntoba@gmail.com',      '07769064971', true, '2026-03-18 16:02:16+00'),
-  (24, 'Sophie',           'sophie_giles93@hotmail.com',      NULL,          true, '2026-03-21 15:29:42+00'),
+  (24, 'Sophie',           'sophie_giles93@hotmail.com',      '',            true, '2026-03-21 15:29:42+00'),
   (26, 'Rianna Soares',    'riannasoares@icloud.com',         '07969866628', true, '2026-03-24 17:57:55+00'),
   (27, 'Ricardo Soares',   'ricardo.soarez@gmail.com',        '07957238446', true, '2026-03-24 17:59:05+00'),
   (28, 'Kamsi Ukandu',     'ukanduc@yahoo.com',               '07988696571', true, '2026-03-29 16:26:41+00'),
