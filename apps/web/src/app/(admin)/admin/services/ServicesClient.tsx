@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface Variant { id?: number; variant_name: string; price: number; duration_mins: number; is_active: boolean }
 interface Addon   { id?: number; name: string; price: number; is_active: boolean }
@@ -33,11 +34,15 @@ function slugify(s: string) {
 }
 
 export default function ServicesClient({ initialServices }: { initialServices: Service[] }) {
-  const [services, setServices] = useState<Service[]>(initialServices)
-  const [editing,  setEditing]  = useState<Service | null>(null)
-  const [saving,   setSaving]   = useState(false)
-  const [error,    setError]    = useState('')
-  const [deleting, setDeleting] = useState<number | null>(null)
+  const [services,      setServices]      = useState<Service[]>(initialServices)
+  const [editing,       setEditing]       = useState<Service | null>(null)
+  const [saving,        setSaving]        = useState(false)
+  const [error,         setError]         = useState('')
+  const [deleting,      setDeleting]      = useState<number | null>(null)
+  const [imgUploading,  setImgUploading]  = useState(false)
+  const [imgError,      setImgError]      = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const supabase = createClient()
 
   // ── Open editor ──────────────────────────────────────────────
   function openNew() { setEditing(blankService()); setError('') }
@@ -90,6 +95,30 @@ export default function ServicesClient({ initialServices }: { initialServices: S
       alert(err.message)
     } finally {
       setDeleting(null)
+    }
+  }
+
+  // ── Image upload to Supabase Storage ────────────────────────
+  async function handleImageUpload(file: File) {
+    setImgUploading(true)
+    setImgError('')
+    try {
+      const ext      = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const filePath = `services/${fileName}`
+
+      const { error: uploadErr } = await supabase.storage
+        .from('services')
+        .upload(filePath, file, { contentType: file.type, upsert: false })
+
+      if (uploadErr) throw new Error(uploadErr.message)
+
+      const { data: urlData } = supabase.storage.from('services').getPublicUrl(filePath)
+      field('image_url', urlData.publicUrl)
+    } catch (err: any) {
+      setImgError(err.message ?? 'Upload failed')
+    } finally {
+      setImgUploading(false)
     }
   }
 
@@ -294,13 +323,59 @@ export default function ServicesClient({ initialServices }: { initialServices: S
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1">Image URL</label>
+                  <label className="block text-xs font-semibold mb-1">Service Image</label>
+
+                  {/* Current image preview */}
+                  {editing.image_url && (
+                    <div className="relative mb-2 w-full h-36 rounded-xl overflow-hidden border"
+                         style={{ borderColor: 'var(--color-border)' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={editing.image_url}
+                        alt="Service"
+                        className="w-full h-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => field('image_url', null)}
+                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center hover:bg-black/80"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Upload button */}
                   <input
-                    className="w-full px-3 py-2 rounded-lg border text-sm"
-                    style={{ borderColor: 'var(--color-border)' }}
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={e => {
+                      const f = e.target.files?.[0]
+                      if (f) handleImageUpload(f)
+                      e.target.value = ''
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={imgUploading}
+                    className="w-full py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-60"
+                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+                  >
+                    {imgUploading ? 'Uploading…' : editing.image_url ? '↺ Replace image' : '↑ Upload image'}
+                  </button>
+                  {imgError && (
+                    <p className="text-xs mt-1 text-red-600">{imgError}</p>
+                  )}
+                  {/* Fallback: paste a URL directly */}
+                  <input
+                    className="w-full px-3 py-2 rounded-lg border text-xs mt-2"
+                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
                     value={editing.image_url ?? ''}
                     onChange={e => field('image_url', e.target.value || null)}
-                    placeholder="https://..."
+                    placeholder="Or paste an image URL…"
                   />
                 </div>
               </div>
