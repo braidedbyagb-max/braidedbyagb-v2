@@ -285,7 +285,7 @@ export default async function BookingConfirmationPage({ searchParams }: Props) {
             Back to Home
           </Link>
           <a
-            href={`https://wa.me/447000000000?text=Hi%2C%20my%20booking%20reference%20is%20${bookingRef}`}
+            href={`https://wa.me/447769064971?text=Hi%2C%20my%20booking%20reference%20is%20${bookingRef}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 px-6 py-3 rounded-full font-bold transition-opacity hover:opacity-80 text-sm"
