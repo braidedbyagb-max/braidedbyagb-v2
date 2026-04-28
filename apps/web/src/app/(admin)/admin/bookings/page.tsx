@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 
 export const metadata: Metadata = { title: 'Bookings' }
@@ -35,7 +35,7 @@ export default async function BookingsPage({ searchParams }: PageProps) {
   const tab = (params.tab ?? 'all') as Tab
   const query = params.q ?? ''
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   let req = supabase
     .from('bookings')

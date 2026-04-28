@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
 async function getDashboardStats() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
   const today = new Date().toISOString().split('T')[0]
 
   const [todayBookings, pendingBookings, monthRevenue, recentBookings] = await Promise.all([

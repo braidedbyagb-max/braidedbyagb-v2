@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 
 export const metadata: Metadata = { title: 'Loyalty Points' }
 
 export default async function LoyaltyPage() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const [customersRes, recentRes, settingsRes] = await Promise.all([
     // Top customers by points

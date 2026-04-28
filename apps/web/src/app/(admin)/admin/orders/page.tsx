@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 
 export const metadata: Metadata = { title: 'Orders' }
@@ -19,7 +19,7 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }>
 export default async function OrdersPage({ searchParams }: PageProps) {
   const params = await searchParams
   const status = params.status ?? ''
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   let req = supabase
     .from('orders')

@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 
 export const metadata: Metadata = { title: 'Accounting' }
 
 async function getAccountingData(from: string, to: string) {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // P&L: group journal entry lines by account type in the period
   const { data: lines } = await supabase

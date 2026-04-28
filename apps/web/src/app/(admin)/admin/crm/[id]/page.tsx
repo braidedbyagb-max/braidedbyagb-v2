@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import CustomerProfileClient from './CustomerProfileClient'
 
@@ -11,7 +11,7 @@ interface PageProps {
 
 export default async function CustomerProfilePage({ params }: PageProps) {
   const { id } = await params
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const [customerRes, bookingsRes, loyaltyRes, notesRes] = await Promise.all([
     supabase.from('customers').select('*').eq('id', id).single(),

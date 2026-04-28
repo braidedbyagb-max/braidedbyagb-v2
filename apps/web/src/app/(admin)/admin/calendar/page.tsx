@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import CalendarClient from './CalendarClient'
 
 export const metadata: Metadata = { title: 'Calendar' }
@@ -18,7 +18,7 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   const lastDay = new Date(year, month, 0).getDate()
   const to   = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const [bookingsRes, blocksRes] = await Promise.all([
     supabase

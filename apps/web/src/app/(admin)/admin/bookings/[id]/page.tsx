@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { notFound } from 'next/navigation'
 import BookingDetailClient from './BookingDetailClient'
 
@@ -11,7 +11,7 @@ interface PageProps {
 
 export default async function BookingDetailPage({ params }: PageProps) {
   const { id } = await params
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: booking, error } = await supabase
     .from('bookings')
