@@ -77,7 +77,7 @@ export default function SettingsClient({ settings: initial }: Props) {
   const inputStyle = { borderColor: 'var(--color-border)', outline: 'none' }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-6" style={{ maxWidth: '42rem' }}>
       {SECTIONS.map(section => {
         const keys = section.fields.map(f => f.key)
         const isSaving = saving === keys[0]

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/lib/supabase/admin'
 import SettingsClient from './SettingsClient'
+import BrandThemeClient from './BrandThemeClient'
 
 export const metadata: Metadata = { title: 'Settings' }
 
@@ -13,5 +14,10 @@ export default async function SettingsPage() {
     settings[row.setting_key] = row.setting_value
   }
 
-  return <SettingsClient settings={settings} />
+  return (
+    <div className="space-y-6">
+      <SettingsClient settings={settings} />
+      <BrandThemeClient settings={settings} />
+    </div>
+  )
 }
