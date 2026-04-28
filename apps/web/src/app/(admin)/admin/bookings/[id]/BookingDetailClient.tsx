@@ -41,29 +41,75 @@ interface Props {
 }
 
 export default function BookingDetailClient({ booking, activity }: Props) {
-  const router = useRouter()
-  const [loading, setLoading] = useState<string | null>(null)
-  const [note, setNote] = useState('')
-  const [addingNote, setAddingNote] = useState(false)
-  const [paymentLink, setPaymentLink] = useState(booking.payment_token
-    ? `${window?.location?.origin || ''}/pay?token=${booking.payment_token}`
-    : null)
-
+  const router  = useRouter()
   const supabase = createClient()
 
+  const [loading,      setLoading]      = useState<string | null>(null)
+  const [note,         setNote]         = useState('')
+  const [addingNote,   setAddingNote]   = useState(false)
+  const [showComplete, setShowComplete] = useState(false)
+  const [balanceMethod, setBalanceMethod] = useState<'cash' | 'card' | 'none'>('cash')
+  const [actionError,  setActionError]  = useState<string | null>(null)
+  const [paymentLink,  setPaymentLink]  = useState(booking.payment_token
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/pay?token=${booking.payment_token}`
+    : null)
+
+  const hasBalance = Number(booking.remaining_balance) > 0
+
+  // ── Simple status update (confirm / no_show) ──────────────
   async function updateStatus(newStatus: string) {
     setLoading(newStatus)
-    const updates: any = { status: newStatus }
-    if (['cancelled', 'late_cancelled'].includes(newStatus)) {
-      updates.is_archived = true
-    }
-    await supabase.from('bookings').update(updates).eq('id', booking.id)
-    // Log activity
+    setActionError(null)
+    await supabase.from('bookings').update({ status: newStatus }).eq('id', booking.id)
     await supabase.from('booking_activity').insert({
       booking_id: booking.id,
       actor: 'admin',
       note: `Status changed to ${newStatus}`,
     })
+    setLoading(null)
+    router.refresh()
+  }
+
+  // ── Complete booking → API route (accounting + loyalty + invoice) ──
+  async function completeBooking() {
+    setLoading('completed')
+    setActionError(null)
+    const method = hasBalance ? balanceMethod : 'none'
+    try {
+      const res = await fetch('/api/admin/bookings/complete', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ booking_id: booking.id, balance_method: method }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        setActionError(d.error ?? 'Failed to complete booking')
+      }
+    } catch {
+      setActionError('Network error — please try again')
+    }
+    setLoading(null)
+    setShowComplete(false)
+    router.refresh()
+  }
+
+  // ── Cancel booking → API route (archive + journal + email) ───
+  async function cancelBooking(newStatus: 'cancelled' | 'late_cancelled' | 'no_show') {
+    setLoading(newStatus)
+    setActionError(null)
+    try {
+      const res = await fetch('/api/admin/bookings/cancel', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ booking_id: booking.id, status: newStatus }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        setActionError(d.error ?? 'Failed to cancel booking')
+      }
+    } catch {
+      setActionError('Network error — please try again')
+    }
     setLoading(null)
     router.refresh()
   }
@@ -251,6 +297,12 @@ export default function BookingDetailClient({ booking, activity }: Props) {
             <h3 className="font-bold text-sm uppercase tracking-wider mb-4"
                 style={{ color: 'var(--color-text-muted)' }}>Actions</h3>
 
+            {actionError && (
+              <div className="mb-3 px-3 py-2 rounded-lg text-sm font-medium bg-red-50 text-red-700 border border-red-200">
+                {actionError}
+              </div>
+            )}
+
             <div className="flex flex-wrap gap-2">
               {isPending && !booking.deposit_paid && booking.payment_method === 'bank_transfer' && (
                 <ActionBtn
@@ -268,25 +320,25 @@ export default function BookingDetailClient({ booking, activity }: Props) {
                   variant="primary"
                 />
               )}
-              {isConfirmed && (
+              {isConfirmed && !showComplete && (
                 <ActionBtn
                   label="Mark Completed"
-                  onClick={() => updateStatus('completed')}
-                  loading={loading === 'completed'}
+                  onClick={() => setShowComplete(true)}
+                  loading={false}
                   variant="primary"
                 />
               )}
               {isCancellable && (
                 <>
                   <ActionBtn
-                    label="Cancel"
-                    onClick={() => updateStatus('cancelled')}
+                    label={loading === 'cancelled' ? 'Cancelling…' : 'Cancel'}
+                    onClick={() => cancelBooking('cancelled')}
                     loading={loading === 'cancelled'}
                     variant="danger"
                   />
                   <ActionBtn
-                    label="Late Cancel (fee applies)"
-                    onClick={() => updateStatus('late_cancelled')}
+                    label={loading === 'late_cancelled' ? 'Cancelling…' : 'Late Cancel (fee)'}
+                    onClick={() => cancelBooking('late_cancelled')}
                     loading={loading === 'late_cancelled'}
                     variant="warning"
                   />
@@ -294,13 +346,64 @@ export default function BookingDetailClient({ booking, activity }: Props) {
               )}
               {!isCompleted && (
                 <ActionBtn
-                  label="No Show"
-                  onClick={() => updateStatus('no_show')}
+                  label={loading === 'no_show' ? 'Saving…' : 'No Show'}
+                  onClick={() => cancelBooking('no_show')}
                   loading={loading === 'no_show'}
                   variant="warning"
                 />
               )}
             </div>
+
+            {/* Completion panel — payment method selector */}
+            {showComplete && (
+              <div className="mt-4 p-4 rounded-xl border"
+                   style={{ borderColor: 'var(--color-border)', background: '#f9fafb' }}>
+                <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-deep-purple)' }}>
+                  {hasBalance
+                    ? `How was the £${Number(booking.remaining_balance).toFixed(2)} balance collected?`
+                    : 'Confirm completion — no balance due.'}
+                </p>
+                {hasBalance && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {([
+                      { value: 'cash', label: '💵 Cash' },
+                      { value: 'card', label: '💳 Card (terminal)' },
+                    ] as const).map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setBalanceMethod(opt.value)}
+                        className="px-4 py-2 rounded-lg text-sm font-semibold border transition-all"
+                        style={{
+                          borderColor: balanceMethod === opt.value ? 'var(--color-primary)' : 'var(--color-border)',
+                          background:  balanceMethod === opt.value ? 'var(--color-primary)' : '#fff',
+                          color:       balanceMethod === opt.value ? '#fff' : 'var(--color-text)',
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
+                  This will create accounting entries, award loyalty points, and send a receipt to the client.
+                </p>
+                <div className="flex gap-2">
+                  <ActionBtn
+                    label={loading === 'completed' ? 'Completing…' : '✓ Confirm Complete'}
+                    onClick={completeBooking}
+                    loading={loading === 'completed'}
+                    variant="success"
+                  />
+                  <button
+                    onClick={() => setShowComplete(false)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium border"
+                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Payment link */}
