@@ -152,13 +152,50 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 7. Double-check slot is still available
-    const slotCheck = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL}/api/bookings/slots?date=${date}&duration=${duration}`
-    )
-    const { slots } = await slotCheck.json()
-    const slot = slots?.find((s: any) => s.time === time)
-    if (!slot?.available) {
+    // 7. Double-check slot is still available (inline — no HTTP call to self)
+    function slotMins(t: string) {
+      const [h, m] = t.split(':').map(Number)
+      return h * 60 + m
+    }
+    const newStart = slotMins(time)
+    const newEnd   = newStart + duration
+
+    // a) Is the whole day blocked?
+    const { data: dayBlock } = await supabase
+      .from('availability')
+      .select('id')
+      .eq('avail_date', date)
+      .eq('is_blocked', true)
+      .is('time_slot', null)
+      .maybeSingle()
+    if (dayBlock) {
+      return NextResponse.json({ error: 'Sorry, we are unavailable on this date. Please choose another day.' }, { status: 409 })
+    }
+
+    // b) Is this specific time slot blocked?
+    const { data: timeBlock } = await supabase
+      .from('availability')
+      .select('id')
+      .eq('avail_date', date)
+      .eq('is_blocked', true)
+      .eq('time_slot', time + ':00')
+      .maybeSingle()
+    if (timeBlock) {
+      return NextResponse.json({ error: 'This time slot is no longer available. Please choose another.' }, { status: 409 })
+    }
+
+    // c) Does the new booking overlap with any existing booking?
+    const { data: dayBookings } = await supabase
+      .from('bookings')
+      .select('booked_time, services(duration_mins), service_variants(duration_mins)')
+      .eq('booked_date', date)
+      .in('status', ['pending', 'confirmed', 'completed'])
+    const occupied = (dayBookings ?? []).map((b: any) => {
+      const start = slotMins((b.booked_time as string).substring(0, 5))
+      const dur = (b.service_variants as any)?.duration_mins ?? (b.services as any)?.duration_mins ?? 60
+      return { start, end: start + dur }
+    })
+    if (occupied.some(b => newStart < b.end && newEnd > b.start)) {
       return NextResponse.json({ error: 'This time slot is no longer available. Please choose another.' }, { status: 409 })
     }
 

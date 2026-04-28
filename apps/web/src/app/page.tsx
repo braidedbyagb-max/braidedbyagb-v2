@@ -98,16 +98,15 @@ export default async function HomePage() {
       .limit(9),
     supabase
       .from('reviews')
-      .select('id, review_text, rating, customers(name), services(name)')
+      .select('id, review_text, rating, client_name, services(name)')
       .eq('status', 'approved')
-      .order('is_featured', { ascending: false })
-      .order('approved_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(6),
   ])
 
   const displayReviews = dbReviews && dbReviews.length > 0
     ? dbReviews.map((r: any) => ({
-        name:    r.customers?.name ?? 'Client',
+        name:    r.client_name     ?? 'Client',
         service: r.services?.name  ?? '',
         rating:  r.rating,
         text:    r.review_text,
@@ -243,7 +242,7 @@ export default async function HomePage() {
                         )}
                         <div className="sp-svc-foot">
                           {dur && <span>⏱ {dur}</span>}
-                          <Link href={`/booking/${svc.slug ?? ''}`} className="btn btn-primary btn-sm">
+                          <Link href="/booking" className="btn btn-primary btn-sm">
                             Book Now
                           </Link>
                         </div>

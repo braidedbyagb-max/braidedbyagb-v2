@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import BookingWizard from './BookingWizard'
 
 export const metadata: Metadata = {
@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 }
 
 export default async function BookingPage() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   const { data: services } = await supabase
     .from('services')
