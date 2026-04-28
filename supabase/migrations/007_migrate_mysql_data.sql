@@ -1,8 +1,13 @@
 -- ============================================================
 -- BraidedbyAGB v2 — Real Data Migration from MySQL
 -- Converts the phpMyAdmin export to Supabase-compatible SQL.
--- Run in Supabase SQL Editor AFTER migrations 001–006.
+-- Safe to run directly after 001–005; does not require 006.
 -- ============================================================
+
+-- ── 0. Ensure extra columns exist (idempotent) ────────────────
+ALTER TABLE services ADD COLUMN IF NOT EXISTS category     TEXT DEFAULT NULL;
+ALTER TABLE services ADD COLUMN IF NOT EXISTS prep_notes   TEXT DEFAULT NULL;
+ALTER TABLE services ADD COLUMN IF NOT EXISTS aftercare    TEXT DEFAULT NULL;
 
 -- ── 1. Wipe placeholder seed data (dependency order) ─────────
 TRUNCATE TABLE booking_addons    CASCADE;
