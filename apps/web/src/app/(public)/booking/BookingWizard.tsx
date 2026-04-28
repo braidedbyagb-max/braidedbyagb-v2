@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
+import { createClient } from '@/lib/supabase/client'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -64,11 +65,37 @@ export default function BookingWizard({ services, settings }: Props) {
   const [creating,      setCreating]      = useState(false)
   const [createError,   setCreateError]   = useState('')
 
+  // Loyalty
+  const [loyaltyBalance,       setLoyaltyBalance]       = useState(0)
+  const [loyaltyPointsToRedeem, setLoyaltyPointsToRedeem] = useState(0)
+  const [loyaltyLoggedIn,      setLoyaltyLoggedIn]      = useState(false)
+
+  // Pre-fill from logged-in session
+  useEffect(() => {
+    fetch('/api/account/profile')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.authenticated) return
+        setLoyaltyLoggedIn(true)
+        setLoyaltyBalance(data.loyalty_points ?? 0)
+        if (!name)  setName(data.name ?? '')
+        if (!email) setEmail(data.email ?? '')
+        if (!phone) setPhone(data.phone ?? '')
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Derived prices
   const duration = variant?.duration_mins ?? service?.duration_mins ?? 60
   const basePrice = variant?.price ?? service?.price_from ?? 0
   const addonTotal = addons.reduce((s, a) => s + a.price, 0)
-  const totalPrice = basePrice + addonTotal
+  const redeemRate   = parseInt(settings.loyalty_redeem_rate ?? '100')
+  const minRedemption = 500
+  const loyaltyDiscount = loyaltyPointsToRedeem >= minRedemption
+    ? loyaltyPointsToRedeem / redeemRate
+    : 0
+  const totalPrice = Math.max(0, basePrice + addonTotal - loyaltyDiscount)
   const depositPct = parseInt(settings.deposit_percent ?? '30') / 100
   const depositAmount = Math.ceil(totalPrice * depositPct * 100) / 100
 
@@ -107,6 +134,7 @@ export default function BookingWizard({ services, settings }: Props) {
           date, time,
           payment_method: payMethod,
           customer: { name, email, phone, notes },
+          loyalty_points_redeemed: loyaltyPointsToRedeem >= minRedemption ? loyaltyPointsToRedeem : 0,
         }),
       })
       const data = await res.json()
@@ -484,6 +512,64 @@ export default function BookingWizard({ services, settings }: Props) {
                 </div>
               </div>
 
+              {/* Loyalty points redemption */}
+              {loyaltyLoggedIn && loyaltyBalance >= minRedemption && (
+                <div className="rounded-xl border p-4 space-y-3"
+                     style={{ borderColor: 'rgba(240,192,48,0.4)', background: 'rgba(240,192,48,0.05)' }}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold" style={{ color: 'var(--color-deep-purple)' }}>
+                      🎁 Loyalty Points
+                    </p>
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: 'rgba(240,192,48,0.2)', color: '#92400e' }}>
+                      Balance: {loyaltyBalance} pts
+                    </span>
+                  </div>
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    Redeem {redeemRate} points = £1 off. Minimum {minRedemption} points.
+                  </p>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      min={0}
+                      max={loyaltyBalance}
+                      step={100}
+                      value={loyaltyPointsToRedeem || ''}
+                      onChange={e => {
+                        const v = parseInt(e.target.value) || 0
+                        setLoyaltyPointsToRedeem(Math.min(v, loyaltyBalance))
+                      }}
+                      placeholder="0"
+                      className="w-28 border rounded-lg px-3 py-2 text-sm font-mono"
+                      style={{ borderColor: 'var(--color-border)' }}
+                    />
+                    <span className="text-sm font-semibold"
+                          style={{ color: loyaltyPointsToRedeem >= minRedemption ? '#059669' : 'var(--color-text-muted)' }}>
+                      {loyaltyPointsToRedeem >= minRedemption
+                        ? `= −£${loyaltyDiscount.toFixed(2)} discount ✓`
+                        : `Min ${minRedemption} pts`}
+                    </span>
+                    {loyaltyBalance > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setLoyaltyPointsToRedeem(
+                          // max = min(all balance, points for 50% of total)
+                          Math.min(loyaltyBalance, Math.floor((totalPrice * 0.5) * redeemRate))
+                        )}
+                        className="text-xs font-semibold underline"
+                        style={{ color: 'var(--color-primary)' }}>
+                        Apply max
+                      </button>
+                    )}
+                  </div>
+                  {loyaltyPointsToRedeem > 0 && loyaltyPointsToRedeem < minRedemption && (
+                    <p className="text-xs text-amber-700">
+                      Enter at least {minRedemption} points to redeem.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Policy */}
               <label className="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" checked={policy} onChange={e => setPolicy(e.target.checked)}
@@ -577,13 +663,21 @@ export default function BookingWizard({ services, settings }: Props) {
                 ))}
                 {date && <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>📅 {formatDate(date)}</p>}
                 {time && <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>🕐 {slots.find(s=>s.time===time)?.label ?? time}</p>}
-                <div className="mt-2 pt-2 border-t flex justify-between text-sm" style={{ borderColor: 'rgba(204,26,138,0.15)' }}>
-                  <span style={{ color: 'var(--color-text-muted)' }}>Deposit ({settings.deposit_percent ?? 30}%)</span>
-                  <span className="font-bold" style={{ color: 'var(--color-primary)' }}>£{depositAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                  <span>Total</span>
-                  <span>£{totalPrice.toFixed(2)}</span>
+                <div className="mt-2 pt-2 border-t space-y-1" style={{ borderColor: 'rgba(204,26,138,0.15)' }}>
+                  {loyaltyDiscount > 0 && (
+                    <div className="flex justify-between text-xs text-green-700">
+                      <span>🎁 Loyalty discount</span>
+                      <span className="font-semibold">−£{loyaltyDiscount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    <span>Total</span>
+                    <span>£{totalPrice.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span style={{ color: 'var(--color-text-muted)' }}>Deposit ({settings.deposit_percent ?? 30}%)</span>
+                    <span className="font-bold" style={{ color: 'var(--color-primary)' }}>£{depositAmount.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             )}

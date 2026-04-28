@@ -1,34 +1,39 @@
-// POST /api/account/profile — update logged-in customer's profile
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+// GET /api/account/profile
+// Returns the current authenticated customer's profile (name, email, loyalty_points).
+// Used by the booking wizard to pre-fill details and show loyalty balance.
+// Returns 200 with authenticated:false if not logged in.
+
+import { NextResponse } from 'next/server'
+import { createClient }      from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function POST(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export const runtime = 'nodejs'
 
-  const { name, phone, hair_notes } = await req.json()
+export async function GET() {
+  try {
+    const authClient = await createClient()
+    const { data: { user } } = await authClient.auth.getUser()
 
-  const admin = createAdminClient()
+    if (!user?.email) {
+      return NextResponse.json({ authenticated: false })
+    }
 
-  // Resolve customer_id
-  const { data: authLink } = await admin
-    .from('customer_auth')
-    .select('customer_id')
-    .eq('auth_user_id', user.id)
-    .maybeSingle()
+    // Admin client bypasses RLS to fetch customer record
+    const supabase = createAdminClient()
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('id, name, phone, loyalty_points')
+      .eq('email', user.email.toLowerCase())
+      .maybeSingle()
 
-  const customerId = authLink?.customer_id
-    ?? (await admin.from('customers').select('id').eq('email', user.email!).maybeSingle()).data?.id
-
-  if (!customerId) return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
-
-  const { error } = await admin
-    .from('customers')
-    .update({ name, phone, hair_notes })
-    .eq('id', customerId)
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+    return NextResponse.json({
+      authenticated:  true,
+      email:          user.email,
+      name:           customer?.name ?? '',
+      phone:          customer?.phone ?? '',
+      loyalty_points: customer?.loyalty_points ?? 0,
+    })
+  } catch {
+    return NextResponse.json({ authenticated: false })
+  }
 }

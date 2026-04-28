@@ -118,6 +118,7 @@ export default async function AccountingPage({ searchParams }: PageProps) {
         {[
           { href: '/admin/accounting/invoices', label: '🧾 Invoices' },
           { href: '/admin/accounting/expenses', label: '💸 Log Expense' },
+          { href: '/admin/accounting/ledger',   label: '📒 Ledger' },
         ].map(l => (
           <Link key={l.href} href={l.href}
             className="px-4 py-2 rounded-xl text-sm font-semibold border transition-colors hover:bg-pink-50"

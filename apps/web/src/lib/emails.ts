@@ -513,6 +513,122 @@ export async function sendContactEnquiry(data: {
   return { error }
 }
 
+// ── Admin: evening preview (tomorrow's schedule) ─────────────
+
+export async function sendAdminEveningPreview(data: {
+  adminEmail: string
+  date: string  // friendly date string for tomorrow
+  bookings: Array<{
+    booking_ref: string
+    booked_time: string
+    customer_name: string
+    customer_phone: string
+    service_name: string
+    duration_mins: number
+    deposit_paid: boolean
+    payment_method: string
+  }>
+}) {
+  const resend = getResend()
+
+  const rows = data.bookings.map(b => {
+    const waLink = `https://wa.me/${b.customer_phone.replace(/\D/g, '')}?text=Hi+${encodeURIComponent(b.customer_name)}`
+    const isPending = !b.deposit_paid && b.payment_method === 'bank_transfer'
+    return `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0e4f5;font-weight:600;color:#2A0020;font-size:13px;">${b.booked_time.slice(0,5)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0e4f5;font-size:13px;color:#2A0020;">
+          ${b.customer_name}
+          ${isPending ? '<span style="display:inline-block;margin-left:6px;padding:1px 6px;background:#fef3c7;color:#92400e;border-radius:999px;font-size:11px;font-weight:600;">Bank pending</span>' : ''}
+        </td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0e4f5;font-size:13px;color:#7A4A70;">${b.service_name} (${b.duration_mins} min)</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0e4f5;">
+          <a href="${waLink}" style="font-size:12px;color:#25D366;font-weight:600;">WhatsApp</a>
+        </td>
+      </tr>`
+  }).join('\n')
+
+  const body = `
+    <h2 style="margin:0 0 4px;font-size:22px;color:#7A0050;">Tomorrow&apos;s Preview 🌙</h2>
+    <p style="margin:0 0 20px;color:#7A4A70;font-size:15px;">
+      Here&apos;s your schedule for <strong>${data.date}</strong> — ${data.bookings.length} appointment${data.bookings.length !== 1 ? 's' : ''}.
+    </p>
+
+    ${data.bookings.length > 0 ? `
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #f0e4f5;border-radius:10px;overflow:hidden;">
+      <thead>
+        <tr style="background:#7A0050;">
+          <th style="padding:10px 12px;text-align:left;color:#fff;font-size:12px;font-weight:600;">Time</th>
+          <th style="padding:10px 12px;text-align:left;color:#fff;font-size:12px;font-weight:600;">Client</th>
+          <th style="padding:10px 12px;text-align:left;color:#fff;font-size:12px;font-weight:600;">Service</th>
+          <th style="padding:10px 12px;text-align:left;color:#fff;font-size:12px;font-weight:600;">Contact</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>` : '<p style="color:#7A4A70;font-size:14px;">No bookings tomorrow — enjoy your day off!</p>'}
+
+    ${primaryButton('Open Admin Panel', `${process.env.NEXT_PUBLIC_APP_URL}/admin/bookings`)}
+  `
+
+  const { error } = await resend.emails.send({
+    from:    FROM_EMAIL(),
+    to:      data.adminEmail,
+    subject: `🌙 Tomorrow's Schedule — ${data.date} (${data.bookings.length} bookings)`,
+    html:    emailWrapper(body),
+  })
+
+  if (error) console.error('[email] sendAdminEveningPreview:', error)
+  return { error }
+}
+
+// ── Admin: 30-minute pre-appointment alert ────────────────────
+
+export async function sendAdmin30MinAlert(data: {
+  adminEmail: string
+  customerName: string
+  customerPhone: string
+  serviceName: string
+  bookingRef: string
+  bookedTime: string  // 'HH:MM'
+  clientNotes?: string
+}) {
+  const resend = getResend()
+
+  const waLink = `https://wa.me/${data.customerPhone.replace(/\D/g, '')}?text=Hi+${encodeURIComponent(data.customerName)}%2C+I%27m+ready+for+you!`
+
+  const body = `
+    <h2 style="margin:0 0 4px;font-size:22px;color:#CC1A8A;">Appointment in 30 Minutes! ⏰</h2>
+    <p style="margin:0 0 20px;color:#7A4A70;font-size:15px;">
+      Your next client is arriving soon.
+    </p>
+
+    ${bookingTable([
+      { label: 'Client',    value: data.customerName },
+      { label: 'Service',   value: data.serviceName },
+      { label: 'Time',      value: data.bookedTime.slice(0, 5) },
+      { label: 'Reference', value: data.bookingRef },
+      { label: 'Notes',     value: data.clientNotes ?? '' },
+    ])}
+
+    <div style="text-align:center;margin:24px 0;">
+      <a href="${waLink}"
+         style="display:inline-block;padding:14px 32px;background:#25D366;color:#fff;text-decoration:none;border-radius:999px;font-weight:700;font-size:15px;">
+        WhatsApp ${data.customerName}
+      </a>
+    </div>
+  `
+
+  const { error } = await resend.emails.send({
+    from:    FROM_EMAIL(),
+    to:      data.adminEmail,
+    subject: `⏰ ${data.customerName} arrives in 30 min — ${data.bookedTime.slice(0,5)}`,
+    html:    emailWrapper(body),
+  })
+
+  if (error) console.error('[email] sendAdmin30MinAlert:', error)
+  return { error }
+}
+
 // ── New review notification (admin) ───────────────────────────
 
 const STAR_MAP = ['', '⭐', '⭐⭐', '⭐⭐⭐', '⭐⭐⭐⭐', '⭐⭐⭐⭐⭐']
