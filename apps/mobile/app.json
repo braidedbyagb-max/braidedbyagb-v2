@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "BraidedbyAGB",
+    "slug": "braidedbyagb-admin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#7A0050"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "uk.co.braidedbyagb.admin"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#7A0050"
+      },
+      "package": "uk.co.braidedbyagb.admin",
+      "permissions": ["NOTIFICATIONS"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        { "color": "#CC1A8A" }
+      ]
+    ],
+    "scheme": "braidedbyagb-admin",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "braidedbyagb-admin"
+      }
+    }
+  }
+}
